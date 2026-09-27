@@ -9,6 +9,7 @@ ClinVar is a public archive that aggregates information about the relationship b
 This project takes the raw ClinVar variant_summary.txt dataset and transforms it into a normalized PostgreSQL data model for downstream analysis.
 
 ## Pipeline
+```
 ClinVar variant_summary.txt
             │
             ▼
@@ -27,6 +28,7 @@ ClinVar variant_summary.txt
             ▼
      SQL validation
        + analysis
+```
 ##Dataset
 
 The project uses ClinVar's variant_summary.txt dataset, containing approximately 9 million records across 43 source columns.
