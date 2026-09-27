@@ -65,31 +65,57 @@ The raw ClinVar dataset is denormalized, with allele-level information repeated 
 The project separates these attributes into two related tables:
 
 ┌─────────────────────────┐
+
 │         ALLELE          │
+
 ├─────────────────────────┤
+
 │ PK  allele_id           │
+
 │     allele_type         │
+
 │     allele_name         │
+
 │     gene_id             │
+
 │     gene_symbol         │
+
 │     ...                 │
+
 └────────────┬────────────┘
+
              │
+
              │ 1-to-many
+
              │
+
              ▼
+
 ┌─────────────────────────┐
+
 │    ALLELE_LOCATION      │
+
 ├─────────────────────────┤
+
 │ PK  location_id         │
+
 │ FK  allele_id           │
+
 │     genome_assembly     │
+
 │     chromosome_accession│
+
 │     chromosome          │
+
 │     start_position      │
+
 │     stop_position       │
+
 │     ...                 │
+
 └─────────────────────────┘
+
 
 # `allele`
 
