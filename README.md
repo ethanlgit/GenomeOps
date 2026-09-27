@@ -29,7 +29,7 @@ ClinVar variant_summary.txt
      SQL validation
        + analysis
 ```
-##Dataset
+## Dataset
 
 The project uses ClinVar's variant_summary.txt dataset, containing approximately 9 million records across 43 source columns.
 
@@ -45,7 +45,7 @@ The raw dataset contains information about:
 - Review status
 - Submitter information
 
-The raw dataset is not included in this repository because of its size.
+The raw dataset is not included in this repository because of its size, but can be found on the official [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/) website.
 
 ## Data Transformation
 
@@ -169,6 +169,7 @@ Example analyses include:
 - RS#	dbSNP identifier, commonly represented as an rs... identifier
 
 ## Project Structure
+```
 GenomeOps/
 ├── data/
 │   ├── raw/                  # Local ClinVar source data
@@ -187,7 +188,7 @@ GenomeOps/
 ├── .gitignore
 ├── README.md
 └── requirements.txt
-
+```
 # Tech Stack
 - Python
 - pandas
