@@ -201,8 +201,8 @@ GenomeOps/
 
 # Planned extensions to the pipeline include:
 
-Loading raw data into Amazon S3
-Orchestrating the pipeline with Apache Airflow
-Extending the warehouse to Snowflake
-Adding analytical transformations with dbt
-Building a Tableau dashboard for downstream analysis
+- Loading raw data into Amazon S3
+- Orchestrating the pipeline with Apache Airflow
+- Extending the warehouse to Snowflake
+- Adding analytical transformations with dbt
+- Building a Tableau dashboard for downstream analysis
