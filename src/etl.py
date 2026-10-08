@@ -4,15 +4,23 @@ import threading
 
 from load import load
 from transform import transform
+from s3 import download_from_s3, upload_to_s3
 
 from dotenv import load_dotenv
 import os
+
+
+
+# ***RUN FROM GenomeOps ROOT
+
 
 
 load_dotenv()
 postgres_password = os.getenv("POSTGRES_PASSWORD")
 file_path = "data/raw/variant_summary.txt"
 
+bucket_name = "genomeops-clinvar-0801"
+s3_key = "raw/variant_summary.txt"
 
 
 def timer(stop_event):
@@ -50,7 +58,13 @@ if __name__ == "__main__":
 
 
     # --------------------------------------------------------------------------
+
+    download_from_s3(bucket_name, s3_key, file_path)
     df = transform(file_path)
+
+    # OPTIONAL, EXPERIMENTAL
+    # upload_to_s3(file_path, bucket_name, s3_key)
+
     load(df=df, pg_password=postgres_password)
     # --------------------------------------------------------------------------
     

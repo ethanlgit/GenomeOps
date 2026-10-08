@@ -4,3 +4,4 @@ psycopg
 psycopg[binary]
 pyarrow
 python-dotenv
+boto3

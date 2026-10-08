@@ -63,14 +63,6 @@ def transform(file_path: str):
     df.loc[df["PositionVCF"] == -1, "PositionVCF"] = pd.NA
     df.loc[df["GeneID"] == -1, "GeneID"] = pd.NA
 
-    df["GeneID"] = df["GeneID"].astype("Int64")
-    df["Start"] = df["Start"].astype("Int64")
-    df["Stop"] = df["Stop"].astype("Int64")
-    df["PositionVCF"] = df["PositionVCF"].astype("Int64")
-    df["RS# (dbSNP)"] = df["RS# (dbSNP)"].astype("Int64")
-    df["Chromosome"] = df["Chromosome"].astype(str)
-
-
     df.loc[df["Cytogenetic"] == "-", "Cytogenetic"] = pd.NA
     df.loc[df["GeneSymbol"] == "-", "GeneSymbol"] = pd.NA
     df.loc[df["ReferenceAllele"] == "na", "ReferenceAllele"] = pd.NA
@@ -79,7 +71,25 @@ def transform(file_path: str):
     df.loc[df["ChromosomeAccession"] == "na", "ChromosomeAccession"] = pd.NA
     df.loc[df["Assembly"] == "na", "Assembly"] = pd.NA
 
+    df["GeneID"] = df["GeneID"].astype("Int64")
+    df["Start"] = df["Start"].astype("Int64")
+    df["Stop"] = df["Stop"].astype("Int64")
+    df["PositionVCF"] = df["PositionVCF"].astype("Int64")
+    df["RS# (dbSNP)"] = df["RS# (dbSNP)"].astype("Int64")
+    df["Chromosome"] = df["Chromosome"].astype("string")
+
+    
     df["TestedInGTR"] = df["TestedInGTR"].map({"Y": True, "N": False})
 
+    df = df.drop(columns=["RCVaccession",
+        "PhenotypeIDS",
+        "PhenotypeList",
+        "Guidelines",
+        "OtherIDs",
+        "SubmitterCategories",
+        "SCVsForAggregateGermlineClassification",
+        "SCVsForAggregateSomaticClinicalImpact",
+        "SCVsForAggregateOncogenicityClassification"])
+    
     return df
 
