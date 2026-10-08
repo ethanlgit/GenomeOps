@@ -1,16 +1,20 @@
-### GenomeOps
+# GenomeOps
 
-A data engineering pipeline for transforming, modeling, validating, and analyzing ClinVar genomic variant data using Python, pandas, PostgreSQL, and SQL.
+A data engineering pipeline for transforming, modeling, validating, and analyzing ClinVar genomic variant data using Python, pandas, AWS S3, PostgreSQL, and SQL.
 
 ## Overview
 
 ClinVar is a public archive that aggregates information about the relationship between human genetic variants and their clinical significance.
 
-This project takes the raw ClinVar variant_summary.txt dataset and transforms it into a normalized PostgreSQL data model for downstream analysis.
+GenomeOps takes the raw ClinVar `variant_summary.txt` dataset, retrieves it from AWS S3, transforms and validates the data with Python and pandas, and loads it into a normalized PostgreSQL data model for downstream analysis.
 
 ## Pipeline
-```
+
+```text
 ClinVar variant_summary.txt
+            │
+            ▼
+          AWS S3
             │
             ▼
      Python / pandas
@@ -18,7 +22,7 @@ ClinVar variant_summary.txt
     Transform + validate
             │
             ▼
-        PostgreSQL
+       PostgreSQL
             │
        ┌────┴────┐
        ▼         ▼
@@ -29,45 +33,65 @@ ClinVar variant_summary.txt
      SQL validation
        + analysis
 ```
+
 ## Dataset
 
-The project uses ClinVar's variant_summary.txt dataset, containing approximately 9 million records across 43 source columns.
+The project uses ClinVar's `variant_summary.txt` dataset, containing approximately 9 million records across 43 source columns.
 
 The raw dataset contains information about:
 
-- Alleles and variant identifiers
-- Genes
-- Clinical significance
-- Genomic coordinates
-- Genome assemblies
-- Reference and alternate alleles
-- Clinical and oncogenicity classifications
-- Review status
-- Submitter information
+* Alleles and variant identifiers
+* Genes
+* Clinical significance
+* Genomic coordinates
+* Genome assemblies
+* Reference and alternate alleles
+* Clinical and oncogenicity classifications
+* Review status
+* Submitter information
 
 The raw dataset is not included in this repository because of its size, but can be found on the official [ClinVar](https://www.ncbi.nlm.nih.gov/clinvar/) website.
+
+## AWS S3
+
+AWS S3 is used as the cloud storage layer for the ClinVar source and processed datasets.
+
+```text
+genomeops-clinvar-0801/
+├── raw/
+│   └── variant_summary.txt
+└── processed/
+    └── variant_summary_cleaned.parquet
+```
+
+The ETL pipeline retrieves the ClinVar source file from S3 before beginning the transformation step. S3 object metadata and downloads were tested using `boto3`.
+
+AWS credentials are managed outside the repository and are not stored in source code.
 
 ## Data Transformation
 
 The Python transformation step prepares the raw dataset for relational storage by:
 
-- Converting source-specific sentinel values such as -1, -, and na to missing values where appropriate
-- Parsing date fields
-- Standardizing numeric columns
-- Converting TestedInGTR from Y/N to Boolean values
-- Preserving biologically meaningful values such as - in allele sequence fields
-- Separating allele-level attributes from genomic location attributes
+* Converting source-specific sentinel values such as `-1`, `-`, and `na` to missing values where appropriate
+* Parsing date fields
+* Standardizing numeric columns
+* Converting `TestedInGTR` from Y/N to Boolean values
+* Preserving biologically meaningful values such as `-` in allele sequence fields
+* Separating allele-level attributes from genomic location attributes
 
 The raw source file is left unchanged.
+
+The transformed dataset is stored as a Parquet file before being loaded into PostgreSQL.
 
 ## Database Design
 
 The raw ClinVar dataset is denormalized, with allele-level information repeated across multiple genomic location records.
 
 The project separates these attributes into two related tables:
-```
+
+```text
 ┌─────────────────────────┐
-│         ALLELE          │
+│          ALLELE         │
 ├─────────────────────────┤
 │ PK  allele_id           │
 │     allele_type         │
@@ -81,50 +105,65 @@ The project separates these attributes into two related tables:
              │
              ▼
 ┌─────────────────────────┐
-│    ALLELE_LOCATION      │
+│     ALLELE_LOCATION     │
 ├─────────────────────────┤
 │ PK  location_id         │
 │ FK  allele_id           │
 │     genome_assembly     │
 │     chromosome_accession│
 │     chromosome          │
-│     start_position      │
-│     stop_position       │
+│     start_position       │
+│     stop_position        │
 │     ...                 │
 └─────────────────────────┘
 ```
-# `allele`
+
+### `allele`
 
 Contains attributes that functionally describe an allele, including:
 
-- Clinical significance
-- Gene information
-- Origin
-- Review status
-- Submitter count
-- Oncogenicity
-- Somatic clinical impact
-- ClinVar identifiers
+* Clinical significance
+* Gene information
+* Origin
+* Review status
+* Submitter count
+* Oncogenicity
+* Somatic clinical impact
+* ClinVar identifiers
 
-The table contains approximately 4.5 million unique alleles.
+The table contains approximately **4.5 million unique alleles**.
 
-# `allele_location`
+### `allele_location`
 
 Contains genomic location information that can vary for an allele across genome assemblies and reference sequences, including:
 
-- Genome assembly
-- Chromosome accession
-- Chromosome
-- Start and stop coordinates
-- Reference and alternate alleles
-- VCF representation
-- Cytogenetic location
+* Genome assembly
+* Chromosome accession
+* Chromosome
+* Start and stop coordinates
+* Reference and alternate alleles
+* VCF representation
+* Cytogenetic location
 
-The table contains approximately 9 million location records.
+The table contains approximately **9 million location records**.
 
 `location_id` is a surrogate primary key. `allele_id` is a foreign key referencing `allele(allele_id)`.
 
 During schema design, combinations of allele identifiers, genome assemblies, and chromosome accessions were investigated as potential natural keys. The final schema uses a surrogate key for `allele_location` while retaining `allele_id` as the relationship to the parent allele.
+
+## Data Loading
+
+PostgreSQL tables are populated using Python and `psycopg` bulk `COPY` operations.
+
+The loading process:
+
+1. Selects and renames columns for each target table
+2. Removes duplicate allele records based on `allele_id`
+3. Converts pandas missing values to SQL `NULL`
+4. Bulk loads the `allele` table
+5. Bulk loads the `allele_location` table
+
+The source dataset contains approximately 9 million location records and 4.5 million unique alleles.
 
 ## Data Validation
 
@@ -132,77 +171,92 @@ SQL validation queries are used to verify the integrity of the transformed data 
 
 Validation checks include:
 
-- Row counts between source and target tables
-- Allele uniqueness
-- Foreign-key and orphaned-record checks
-- Uniqueness of populated genomic location combinations
-- Missing location information
-- Consistency of nullable location fields
-- Duplicate records
+* Row counts between source and target tables
+* Allele uniqueness
+* Foreign-key and orphaned-record checks
+* Uniqueness of populated genomic location combinations
+* Missing location information
+* Consistency of nullable location fields
+* Duplicate records
 
-The source dataset contained no exact duplicate rows, and the loaded location records contained no orphaned allele_id values.
+The source dataset contained no exact duplicate rows, and the loaded location records contained no orphaned `allele_id` values.
 
 ## Analysis
 
 The project includes analytical SQL queries using:
 
-- JOIN
-- GROUP BY
-- Aggregations
-- Common Table Expressions (CTEs)
+* `JOIN`
+* `GROUP BY`
+* Aggregations
+* Common Table Expressions (CTEs)
 
 Example analyses include:
 
-- Variants per gene
-- Distribution of clinical significance classifications
-- Records by genome assembly
-- Records by chromosome
-- Genomic locations by gene
-- Alleles with multiple genomic locations
-- Distribution of locations per allele
-- ClinVar Terminology
-- Term Meaning
-- SCV	Single ClinVar submission from a laboratory, hospital, research group, or other submitter
-- GTR	Genetic Testing Registry, a catalog of genetic tests
-- VCF	Variant Call Format, a standard format for representing genomic variants
-- nsv/esv	dbVar identifiers for structural variants
-- RS#	dbSNP identifier, commonly represented as an rs... identifier
+* Variants per gene
+* Distribution of clinical significance classifications
+* Records by genome assembly
+* Records by chromosome
+* Genomic locations by gene
+* Alleles with multiple genomic locations
+* Distribution of locations per allele
+
+## ClinVar Terminology
+
+| Term    | Meaning                                                                                   |
+| ------- | ----------------------------------------------------------------------------------------- |
+| SCV     | Single ClinVar submission from a laboratory, hospital, research group, or other submitter |
+| GTR     | Genetic Testing Registry, a catalog of genetic tests                                      |
+| VCF     | Variant Call Format, a standard format for representing genomic variants                  |
+| nsv/esv | dbVar identifiers for structural variants                                                 |
+| RS#     | dbSNP identifier, commonly represented as an `rs...` identifier                           |
 
 ## Project Structure
-```
+
+```text
 GenomeOps/
+
 ├── data/
-│   ├── raw/                  # Local ClinVar source data
-│   └── processed/            # Generated data
+│   ├── raw/                         # Local ClinVar source data
+│   └── processed/                   # Generated processed data
+│
 ├── notebooks/
-│   └── exploration.ipynb     # Dataset exploration and schema investigation
+│   ├── exploration.ipynb            # Dataset exploration and schema investigation
+│   └── s3_exploration.ipynb         # AWS S3 exploration and testing
+│
 ├── sql/
 │   ├── 01_create_tables.sql
 │   ├── 02_load_data.sql
 │   ├── 03_validation.sql
 │   └── 04_analysis.sql
+│
 ├── src/
-│   ├── transform.py          # Data transformation
-│   ├── load.py               # PostgreSQL loading
-│   └── etl.py                # Pipeline entry point
+│   ├── transform.py                 # Data transformation
+│   ├── load.py                      # PostgreSQL loading
+│   ├── s3.py                        # AWS S3 operations
+│   └── etl.py                       # Pipeline entry point
+│
 ├── .gitignore
 ├── README.md
 └── requirements.txt
 ```
-# Tech Stack
-- Python
-- pandas
-- PostgreSQL
-- SQL
-- psycopg
-- SQLAlchemy
-- Jupyter
-- Future Work
 
-# Planned extensions to the pipeline include:
+## Tech Stack
 
-- Loading raw data into Amazon S3
-- Orchestrating the pipeline with Apache Airflow
-- Extending the warehouse to Snowflake
-- Adding analytical transformations with dbt
-- Building a Tableau dashboard for downstream analysis
+* Python
+* pandas
+* AWS S3
+* boto3
+* PostgreSQL
+* SQL
+* psycopg
+* SQLAlchemy
+* Jupyter
+
+## Future Work
+
+Planned extensions to the pipeline include:
+
+* Orchestrating the pipeline with Apache Airflow
+* Extending the warehouse to Snowflake
+* Adding analytical transformations with dbt
+* Building a Tableau dashboard for downstream analysis
