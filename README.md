@@ -112,8 +112,8 @@ The project separates these attributes into two related tables:
 │     genome_assembly     │
 │     chromosome_accession│
 │     chromosome          │
-│     start_position       │
-│     stop_position        │
+│     start_position      │
+│     stop_position       │
 │     ...                 │
 └─────────────────────────┘
 ```
